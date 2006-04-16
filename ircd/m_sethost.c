@@ -1,6 +1,7 @@
 /*
- * IRC - Internet Relay Chat, ircd/m_wallvoices.c
- * Copyright (c) 2002 hikari
+ * IRC - Internet Relay Chat, ircd/m_sethost.c
+ * Copyright (C) 1990 Jarkko Oikarinen and
+ *                    University of Oulu, Computing Center
  *
  * See file AUTHORS in IRC package for additional names of
  * the programmers.
@@ -19,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $Id: m_wallvoices.c,v 1.6 2004/12/11 05:14:03 klmitch Exp $
+ * $Id: asuka-sethost.patch,v 1.27 2005/02/13 17:28:11 froo Exp $
  */
 
 /*
@@ -80,76 +81,63 @@
  */
 #include "config.h"
 
-#include "channel.h"
 #include "client.h"
-#include "hash.h"
-#include "ircd.h"
-#include "ircd_log.h"
 #include "ircd_reply.h"
 #include "ircd_string.h"
-#include "msg.h"
+#include "ircd_features.h"
+#include "msgq.h"
 #include "numeric.h"
-#include "numnicks.h"
 #include "s_user.h"
-#include "send.h"
+#include "s_debug.h"
+#include "struct.h"
 
-/* #include <assert.h> -- Now using assert in ircd_log.h */
+#include <assert.h>
+#include <stdlib.h>
 
 /*
- * m_wallvoices - local generic message handler
+ * m_sethost - generic message handler
+ *
+ * mimic old lain syntax:
+ *
+ * (Oper) /SETHOST ident host.cc [quit-message]
+ * (User) /SETHOST host.cc password
+ * (Both) /SETHOST undo
+ *
+ * check for undo, prepend parv w. <nick> -h or +h
  */
-int m_wallvoices(struct Client* cptr, struct Client* sptr, int parc, char* parv[])
+int m_sethost(struct Client* cptr, struct Client* sptr, int parc, char* parv[])
 {
-  struct Channel *chptr;
+  char hostmask[512];
+  struct Flags setflags;
 
-  assert(0 != cptr);
-  assert(cptr == sptr);
+  /* Back up the flags first */
+  setflags = cli_flags(sptr);
 
-  ClrFlag(sptr, FLAG_TS8);
+  if (parc < 2)
+    return need_more_params(sptr, "SETHOST");
 
-  if (parc < 2 || EmptyString(parv[1]))
-    return send_reply(sptr, ERR_NORECIPIENT, "WALLVOICES");
-
-  if (parc < 3 || EmptyString(parv[parc - 1]))
-    return send_reply(sptr, ERR_NOTEXTTOSEND);
-
-  if (IsChannelName(parv[1]) && (chptr = FindChannel(parv[1]))) {
-    if (client_can_send_to_channel(sptr, chptr, 0) && !(chptr->mode.mode & MODE_NONOTICE)) {
-      if ((chptr->mode.mode & MODE_NOPRIVMSGS) &&
-          check_target_limit(sptr, chptr, chptr->chname, 0))
-        return 0;
-      sendcmdto_channel_butone(sptr, CMD_WALLVOICES, chptr, cptr,
-			       SKIP_DEAF | SKIP_BURST | SKIP_NONVOICES, 
-			       "%H :+ %s", chptr, parv[parc - 1]);
+  if (0 == ircd_strcmp("undo", parv[1])) {
+    set_hostmask(sptr, NULL, NULL);
+  } else {
+    if (parc<3)
+      return need_more_params(sptr, "SETHOST");
+    if (IsAnOper(sptr)) {
+      ircd_snprintf(0, hostmask, USERLEN + HOSTLEN + 1, "%s@%s", parv[1], parv[2]);
+      if (!is_hostmask(hostmask)) {
+	send_reply(sptr, ERR_BADHOSTMASK, hostmask);
+	return 0;
+      }
+      if (set_hostmask(sptr, hostmask, NULL))
+      	FlagClr(&setflags, FLAG_SETHOST);
+    } else {
+      if (!is_hostmask(parv[1])) {
+	send_reply(sptr, ERR_BADHOSTMASK, parv[1]);
+	return 0;
+      }
+      if (set_hostmask(sptr, parv[1], parv[2]))
+        FlagClr(&setflags, FLAG_SETHOST);
     }
-    else
-      send_reply(sptr, ERR_CANNOTSENDTOCHAN, parv[1]);
-  }
-  else
-    send_reply(sptr, ERR_NOSUCHCHANNEL, parv[1]);
+  }  
 
-  return 0;
-}
-
-/*
- * ms_wallvoices - server message handler
- */
-int ms_wallvoices(struct Client* cptr, struct Client* sptr, int parc, char* parv[])
-{
-  struct Channel *chptr;
-  assert(0 != cptr);
-  assert(0 != sptr);
-
-  if (parc < 3 || !IsUser(sptr))
-    return 0;
-
-  if (!IsLocalChannel(parv[1]) && (chptr = FindChannel(parv[1]))) {
-    if (client_can_send_to_channel(sptr, chptr, 0) && !(chptr->mode.mode & MODE_NONOTICE)) {
-      sendcmdto_channel_butone(sptr, CMD_WALLVOICES, chptr, cptr,
-			       SKIP_DEAF | SKIP_BURST | SKIP_NONVOICES, 
-			       "%H :%s", chptr, parv[parc - 1]);
-    } else
-      send_reply(sptr, ERR_CANNOTSENDTOCHAN, parv[1]);
-  }
-  return 0;
+  send_umode_out(cptr, sptr, &setflags, 0);
 }

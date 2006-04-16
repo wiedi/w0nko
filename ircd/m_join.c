@@ -150,9 +150,9 @@ int m_join(struct Client *cptr, struct Client *sptr, int parc, char *parv[])
     }
 
     /* BADCHANed channel */
-    if ((gline = gline_find(name, GLINE_BADCHAN | GLINE_EXACT)) &&
+    if ((gline = gline_find(name, GLINE_BADCHAN)) &&
 	GlineIsActive(gline) && !IsAnOper(sptr)) {
-      send_reply(sptr, ERR_BANNEDFROMCHAN, name);
+      send_reply(sptr, ERR_BADCHANNAME, name, gline->gl_reason);
       continue;
     }
 
@@ -174,6 +174,8 @@ int m_join(struct Client *cptr, struct Client *sptr, int parc, char *parv[])
       }
 
       joinbuf_join(&create, chptr, CHFL_CHANOP | CHFL_CHANNEL_MANAGER);
+      if (feature_bool(FEAT_AUTOCHANMODES) && feature_str(FEAT_AUTOCHANMODES_LIST) && strlen(feature_str(FEAT_AUTOCHANMODES_LIST)) > 0)
+        SetAutoChanModes(chptr);
     } else if (find_member_link(chptr, sptr)) {
       continue; /* already on channel */
     } else if (check_target_limit(sptr, chptr, chptr->chname, 0)) {
@@ -205,6 +207,14 @@ int m_join(struct Client *cptr, struct Client *sptr, int parc, char *parv[])
       else if (*chptr->mode.key && (!key || strcmp(key, chptr->mode.key)))
         err = ERR_BADCHANNELKEY;
 
+      /*
+       * ASUKA_X:
+       * Allow XtraOpers to join all channels.
+       * --Bigfoot
+       */
+      if (IsXtraOp(sptr))
+        err = 0;
+      
       /* An oper with WALK_LCHAN privilege can join a local channel
        * he otherwise could not join by using "OVERRIDE" as the key.
        * This will generate a HACK(4) notice, but fails if the oper
