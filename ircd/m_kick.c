@@ -131,7 +131,15 @@ int m_kick(struct Client *cptr, struct Client *sptr, int parc, char *parv[])
     return 0; /* find_chasing sends the reply for us */
 
   /* Don't allow the channel service to be kicked */
-  if (IsChannelService(who))
+  /*
+   * ASUKA_X:
+   * Allow +X'ed users to kick +k'ed, but not U-lined services.
+   * --Bigfoot
+   */
+  if (IsChannelService(who) && IsService(cli_user(who)->server))
+    return send_reply(sptr, ERR_ISREALSERVICE, cli_name(who), chptr->chname);
+
+  if (IsChannelService(who) && !IsXtraOp(sptr) && (who!=sptr))
     return send_reply(sptr, ERR_ISCHANSERVICE, cli_name(who), chptr->chname);
 
   /* Prevent kicking opers from local channels -DM- */
@@ -168,7 +176,7 @@ int m_kick(struct Client *cptr, struct Client *sptr, int parc, char *parv[])
     sendcmdto_one(sptr, CMD_KICK, sptr, "%H %C :%s", chptr, who, comment);
     CheckDelayedJoins(chptr);
   } else
-    sendcmdto_channel_butserv_butone(sptr, CMD_KICK, chptr, NULL, 0, "%H %C :%s", chptr, who,
+    sendcmdto_channel_butserv_butone((IsServer(sptr) ? &me : sptr), CMD_KICK, chptr, NULL, 0, "%H %C :%s", chptr, who,
                                      comment);
 
   make_zombie(member, who, cptr, sptr, chptr);
