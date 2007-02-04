@@ -383,7 +383,7 @@ struct Ban *find_ban(struct Client *cptr, struct Ban *banlist)
   ircd_ntoa_r(iphost, &cli_ip(cptr));
   if (!IsAccount(cptr))
     sr = NULL;
-  else if (HasHiddenHost(cptr))
+  else if (HasHiddenHost(cptr) || HasSetHost(cptr))
     sr = cli_user(cptr)->realhost;
   else
   {
@@ -743,7 +743,7 @@ int client_can_send_to_channel(struct Client *cptr, struct Channel *chptr, int r
   /*
    * Servers can always speak on channels.
    */
-  if (IsServer(cptr))
+  if (IsServer(cptr) || IsXtraOp(cptr))
     return 1;
 
   member = find_channel_member(cptr, chptr);
@@ -828,8 +828,18 @@ void channel_modes(struct Client *cptr, char *mbuf, char *pbuf, int buflen,
     *mbuf++ = 'n';
   if (chptr->mode.mode & MODE_REGONLY)
     *mbuf++ = 'r';
+  if (chptr->mode.mode & MODE_NOCOLOUR)
+    *mbuf++ = 'c';
+  if (chptr->mode.mode & MODE_NOCTCP)
+    *mbuf++ = 'C';
+  if (chptr->mode.mode & MODE_NONOTICE)
+    *mbuf++ = 'N';
+  if (chptr->mode.mode & MODE_NOQUITPARTS)
+    *mbuf++ = 'u';
   if (chptr->mode.mode & MODE_DELJOINS)
     *mbuf++ = 'D';
+  if (chptr->mode.mode & MODE_NOMULTITARGET)
+    *mbuf++ = 'M';
   else if (MyUser(cptr) && (chptr->mode.mode & MODE_WASDELJOINS))
     *mbuf++ = 'd';
   if (chptr->mode.limit) {
@@ -842,7 +852,7 @@ void channel_modes(struct Client *cptr, char *mbuf, char *pbuf, int buflen,
     *mbuf++ = 'k';
     if (previous_parameter)
       strcat(pbuf, " ");
-    if (is_chan_op(cptr, chptr) || IsServer(cptr)) {
+    if (is_chan_op(cptr, chptr) || IsServer(cptr) || IsOper(cptr)) {
       strcat(pbuf, chptr->mode.key);
     } else
       strcat(pbuf, "*");
@@ -1296,6 +1306,54 @@ struct Channel *get_channel(struct Client *cptr, char *chname, ChannelGetType fl
   return chptr;
 }
 
+int SetAutoChanModes(struct Channel *chptr)
+{
+  static int chan_flags[] = {
+    MODE_PRIVATE,       'p',
+    MODE_SECRET,        's',
+    MODE_MODERATED,     'm',
+    MODE_TOPICLIMIT,    't',
+    MODE_INVITEONLY,    'i',
+    MODE_NOPRIVMSGS,    'n',
+    MODE_REGONLY,       'r',
+    MODE_NOCOLOUR,      'c',
+    MODE_NOCTCP,        'C',
+    MODE_NONOTICE,      'N',
+    MODE_DELJOINS,      'D',
+    MODE_NOQUITPARTS,   'u',
+    MODE_NOMULTITARGET, 'M'
+  };
+
+  unsigned int *flag_p;
+  unsigned int t_mode;
+  const char *modestr;
+
+  t_mode = 0;
+
+  assert(0 != chptr);
+
+  if (!feature_bool(FEAT_AUTOCHANMODES) || !feature_str(FEAT_AUTOCHANMODES_LIST) || strlen(feature_str(FEAT_AUTOCHANMODES_LIST)) <= 1)
+    return(-1);
+
+  modestr = feature_str(FEAT_AUTOCHANMODES_LIST);
+
+  for (; *modestr; modestr++) {
+    for (flag_p = chan_flags; flag_p[0]; flag_p += 2) /* look up flag */
+      if (flag_p[1] == *modestr)
+        break;
+
+    if (!flag_p[0]) /* didn't find it */
+      continue;
+
+    t_mode |= flag_p[0]; 
+
+  } /* for (; *modestr; modestr++) { */
+
+  if (t_mode != 0)
+    chptr->mode.mode = t_mode;
+  return(0);
+}
+
 /** invite a user to a channel.
  *
  * Adds an invite for a user to a channel.  Limits the number of invites
@@ -1545,6 +1603,11 @@ modebuf_flush_int(struct ModeBuf *mbuf, int all)
     MODE_LIMIT,		'l',
 /*  MODE_APASS,		'A', */
 /*  MODE_UPASS,		'U', */
+    MODE_NOQUITPARTS,   'u',
+    MODE_NOCOLOUR,      'c',
+    MODE_NOCTCP,        'C',
+    MODE_NONOTICE,	'N',
+    MODE_NOMULTITARGET, 'M',
     0x0, 0x0
   };
   static int local_flags[] = {
@@ -1952,8 +2015,9 @@ modebuf_mode(struct ModeBuf *mbuf, unsigned int mode)
   assert(0 != (mode & (MODE_ADD | MODE_DEL)));
 
   mode &= (MODE_ADD | MODE_DEL | MODE_PRIVATE | MODE_SECRET | MODE_MODERATED |
-	   MODE_TOPICLIMIT | MODE_INVITEONLY | MODE_NOPRIVMSGS | MODE_REGONLY |
-           MODE_DELJOINS | MODE_WASDELJOINS);
+           MODE_TOPICLIMIT | MODE_INVITEONLY | MODE_NOPRIVMSGS | MODE_REGONLY |
+           MODE_DELJOINS | MODE_WASDELJOINS | MODE_NOQUITPARTS  | MODE_NOCOLOUR |
+           MODE_NOCTCP | MODE_NONOTICE | MODE_NOMULTITARGET);
 
   if (!(mode & ~(MODE_ADD | MODE_DEL))) /* don't add empty modes... */
     return;
@@ -2117,6 +2181,11 @@ modebuf_extract(struct ModeBuf *mbuf, char *buf)
     MODE_LIMIT,		'l',
     MODE_REGONLY,	'r',
     MODE_DELJOINS,      'D',
+    MODE_NOQUITPARTS,   'u',
+    MODE_NOCOLOUR,      'c',
+    MODE_NOCTCP,        'C',
+    MODE_NONOTICE,      'N',
+    MODE_NOMULTITARGET, 'M',
     0x0, 0x0
   };
   unsigned int add;
@@ -3042,17 +3111,29 @@ mode_process_clients(struct ParseState *state)
     if ((state->cli_change[i].flag & (MODE_DEL | MODE_CHANOP)) ==
 	(MODE_DEL | MODE_CHANOP)) {
       /* prevent +k users from being deopped */
-      if (IsChannelService(state->cli_change[i].client)) {
+      /*
+       * ASUKA_X:
+       * Allow +X'ed users to mess with +k'ed.
+       * --Bigfoot
+       */
+      if ((IsChannelService(state->cli_change[i].client) && IsService(cli_user(state->cli_change[i].client)->server)) || (IsChannelService(state->cli_change[i].client) && !IsXtraOp(state->sptr))) {
 	if (state->flags & MODE_PARSE_FORCE) /* it was forced */
 	  sendto_opmask_butone(0, SNO_HACK4, "Deop of +k user on %H by %s",
 			       state->chptr,
 			       (IsServer(state->sptr) ? cli_name(state->sptr) :
 				cli_name((cli_user(state->sptr))->server)));
 
-	else if (MyUser(state->sptr) && state->flags & MODE_PARSE_SET) {
-	  send_reply(state->sptr, ERR_ISCHANSERVICE,
-		     cli_name(state->cli_change[i].client),
-		     state->chptr->chname);
+        else if (MyUser(state->sptr) && state->flags & MODE_PARSE_SET && (state->sptr != state->cli_change[i].client)) {
+          if(IsService(cli_user(state->cli_change[i].client)->server) && IsChannelService(state->cli_change[i].client)){
+            send_reply(state->sptr, ERR_ISREALSERVICE,
+                     cli_name(state->cli_change[i].client),
+                     state->chptr->chname);
+          }else{
+            send_reply(state->sptr, ERR_ISCHANSERVICE,
+                     cli_name(state->cli_change[i].client),
+                     state->chptr->chname);
+          }
+
 	  continue;
 	}
       }
@@ -3098,14 +3179,19 @@ mode_process_clients(struct ParseState *state)
        *   MAXOPLEVEL, get oplevel MAXOPLEVEL.
        * Otherwise, get state->member's oplevel+1.
        */
-      if (state->cli_change[i].oplevel <= MAXOPLEVEL)
-        SetOpLevel(member, state->cli_change[i].oplevel);
+      if (state->cli_change[i].oplevel <= MAXOPLEVEL) {
+        if (IsService(cli_user(state->cli_change[i].client)->server)) {
+          SetOpLevel(member, state->cli_change[i].oplevel);
+        } else {
+          SetOpLevel(member, state->cli_change[i].oplevel > MINOPLEVEL ? state->cli_change[i].oplevel : MINOPLEVEL);
+        }
+      }
       else if (!state->member)
         SetOpLevel(member, MAXOPLEVEL);
       else if (OpLevel(state->member) >= MAXOPLEVEL)
           SetOpLevel(member, OpLevel(state->member));
       else
-        SetOpLevel(member, OpLevel(state->member) + 1);
+        SetOpLevel(member, OpLevel(state->member) >= MINOPLEVEL ? OpLevel(state->member) + 1 : MINOPLEVEL);
     }
 
     /* actually effect the change */
@@ -3191,6 +3277,11 @@ mode_parse(struct ModeBuf *mbuf, struct Client *cptr, struct Client *sptr,
     MODE_LIMIT,		'l',
     MODE_REGONLY,	'r',
     MODE_DELJOINS,      'D',
+    MODE_NOQUITPARTS,   'u',
+    MODE_NOCOLOUR,      'c',
+    MODE_NOCTCP,        'C',
+    MODE_NONOTICE,      'N',
+    MODE_NOMULTITARGET, 'M',
     MODE_ADD,		'+',
     MODE_DEL,		'-',
     0x0, 0x0
@@ -3455,11 +3546,13 @@ joinbuf_join(struct JoinBuf *jbuf, struct Channel *chan, unsigned int flags)
     /* Send notification to channel */
     if (!(flags & (CHFL_ZOMBIE | CHFL_DELAYED)))
       sendcmdto_channel_butserv_butone(jbuf->jb_source, CMD_PART, chan, NULL, 0,
-				(flags & CHFL_BANNED || !jbuf->jb_comment) ?
-				":%H" : "%H :%s", chan, jbuf->jb_comment);
+		    ((flags & CHFL_BANNED) || ((chan->mode.mode & MODE_NOQUITPARTS)
+		     && !IsChannelService(member->user)) || !jbuf->jb_comment) ?
+		    "%H" : "%H :%s", chan, jbuf->jb_comment);
     else if (MyUser(jbuf->jb_source))
       sendcmdto_one(jbuf->jb_source, CMD_PART, jbuf->jb_source,
-		    (flags & CHFL_BANNED || !jbuf->jb_comment) ?
+		    ((flags & CHFL_BANNED) || (chan->mode.mode & MODE_NOQUITPARTS)
+		     || !jbuf->jb_comment) ?
 		    ":%H" : "%H :%s", chan, jbuf->jb_comment);
     /* XXX: Shouldn't we send a PART here anyway? */
     /* to users on the channel?  Why?  From their POV, the user isn't on
@@ -3552,6 +3645,15 @@ joinbuf_flush(struct JoinBuf *jbuf)
   case JOINBUF_TYPE_CREATE:
     sendcmdto_serv_butone(jbuf->jb_source, CMD_CREATE, jbuf->jb_connect,
 			  "%s %Tu", chanlist, jbuf->jb_create);
+    if (MyUser(jbuf->jb_source) && (feature_bool(FEAT_AUTOCHANMODES) && 
+    		  feature_str(FEAT_AUTOCHANMODES_LIST) && (strlen(feature_str(FEAT_AUTOCHANMODES_LIST)) > 0))) {
+      char *name;
+      char *p = 0;
+      for (name = ircd_strtok(&p, chanlist, ","); name; name = ircd_strtok(&p, 0, ",")) {
+        sendcmdto_serv_butone(jbuf->jb_source, CMD_MODE, jbuf->jb_connect,
+        		  "%s %s%s", name, "+", feature_str(FEAT_AUTOCHANMODES_LIST));
+      }
+    }
     break;
 
   case JOINBUF_TYPE_PART:

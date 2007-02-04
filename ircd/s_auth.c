@@ -265,8 +265,11 @@ static int auth_set_username(struct AuthRequest *auth)
       || ((user->username[0] == '~') && (user->username[1] == '\0')))
     return exit_client(sptr, sptr, &me, "USER: Bogus userid.");
 
+  /* Have to set up "realusername" before doing the gline check below */
+  ircd_strncpy(user->realusername, user->username, USERLEN);
+
   /* Check for K- or G-line. */
-  killreason = find_kill(sptr);
+  killreason = find_kill(sptr, 1);
   if (killreason) {
     ServerStats->is_ref++;
     return exit_client(sptr, sptr, &me,
@@ -1875,8 +1878,12 @@ static int iauth_cmd_done_account(struct IAuth *iauth, struct Client *cli,
   }
   /* If account has a creation timestamp, use it. */
   assert(cli_user(cli) != NULL);
-  if (params[0][len] == ':')
-    cli_user(cli)->acc_create = strtoul(params[0] + len + 1, NULL, 10);
+  if (params[0][len] == ':') {
+    char *end;
+    cli_user(cli)->acc_create = strtoul(params[0] + len + 1, &end, 10);
+    if (*end == ':')
+      cli_user(cli)->acc_id = strtoul(end + 1, NULL, 10);
+  }
 
   /* Copy account name to User structure. */
   ircd_strncpy(cli_user(cli)->account, params[0], ACCOUNTLEN);
