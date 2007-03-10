@@ -101,6 +101,9 @@ struct Client;
 #define MODE_LIMIT      0x0400		/**< +l Limit */
 #define MODE_REGONLY    0x0800  	/**< Only +r users may join */
 #define MODE_DELJOINS   0x1000  	/**< New join messages are delayed */
+#define MODE_NOCOLOUR   0x2000          /**< No mIRC/ANSI colors/bold */
+#define MODE_NOCTCP     0x4000          /**< No channel CTCPs */
+#define MODE_NONOTICE   0x8000          /**< No channel notices */
 #define MODE_SAVE	0x20000		/**< save this mode-with-arg 'til 
 					 * later */
 #define MODE_FREE	0x40000 	/**< string needs to be passed to 
@@ -110,12 +113,17 @@ struct Client;
 #define MODE_APASS	0x200000
 #define MODE_WASDELJOINS 0x400000 	/**< Not DELJOINS, but some joins 
 					 * pending */
+#define MODE_NOQUITPARTS 0x800000
+
+#define MODE_NOMULTITARGET 0x1000000    /**< +T No multiple targets */
+#define MODE_MODERATENOREG 0x2000000    /**< +M Moderate unauthed users */
+
 /** mode flags which take another parameter (With PARAmeterS)
  */
 #define MODE_WPARAS     (MODE_CHANOP|MODE_VOICE|MODE_BAN|MODE_KEY|MODE_LIMIT|MODE_APASS|MODE_UPASS)
 
 /** Available Channel modes */
-#define infochanmodes feature_bool(FEAT_OPLEVELS) ? "AbiklmnopstUvrD" : "biklmnopstvrD"
+#define infochanmodes feature_bool(FEAT_OPLEVELS) ? "AbiklmnopstUvrDcCNuMT" : "biklmnopstvrDcCNuMT"
 /** Available Channel modes that take parameters */
 #define infochanmodeswithparams feature_bool(FEAT_OPLEVELS) ? "AbkloUv" : "bklov"
 
@@ -196,6 +204,7 @@ struct Membership {
 
 #define MAXOPLEVELDIGITS    3
 #define MAXOPLEVEL          999
+#define MINOPLEVEL          100 /* minimum oplevel that ordinary users can set */
 
 #define IsZombie(x)         ((x)->status & CHFL_ZOMBIE) /**< see \ref zombie */
 #define IsDeopped(x)        ((x)->status & CHFL_DEOPPED)
@@ -367,6 +376,7 @@ extern void send_hack_notice(struct Client *cptr, struct Client *sptr,
                              int parc, char *parv[], int badop, int mtype);
 extern struct Channel *get_channel(struct Client *cptr,
                                    char *chname, ChannelGetType flag);
+extern int SetAutoChanModes(struct Channel *chptr);
 extern struct Membership* find_member_link(struct Channel * chptr,
                                            const struct Client* cptr);
 extern int sub1_from_channel(struct Channel* chptr);

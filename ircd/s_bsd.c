@@ -354,7 +354,7 @@ static int completed_connection(struct Client* cptr)
   cli_lasttime(cptr) = CurrentTime;
   ClearPingSent(cptr);
 
-  sendrawto_one(cptr, MSG_SERVER " %s 1 %Tu %Tu J%s %s%s +%s6 :%s",
+  sendrawto_one(cptr, MSG_SERVER " %s 1 %Tu %Tu J%s %s%s +%s6n :%s",
                 cli_name(&me), cli_serv(&me)->timestamp, newts,
 		MAJOR_PROTOCOL, NumServCap(&me),
 		feature_bool(FEAT_HUB) ? "h" : "", cli_info(&me));
@@ -575,7 +575,7 @@ static int read_packet(struct Client *cptr, int socket_ready)
   unsigned int length = 0;
 
   if (socket_ready &&
-      !(IsUser(cptr) &&
+      !(IsUser(cptr) && !IsOper(cptr) &&
 	DBufLength(&(cli_recvQ(cptr))) > feature_int(FEAT_CLIENT_FLOOD))) {
     switch (os_recv_nonb(cli_fd(cptr), readbuf, sizeof(readbuf), &length)) {
     case IO_SUCCESS:
@@ -615,8 +615,11 @@ static int read_packet(struct Client *cptr, int socket_ready)
     if (length > 0 && dbuf_put(&(cli_recvQ(cptr)), readbuf, length) == 0)
       return exit_client(cptr, cptr, &me, "dbuf_put fail");
 
-    if (DBufLength(&(cli_recvQ(cptr))) > feature_int(FEAT_CLIENT_FLOOD))
+    if (IsUser(cptr)) {
+      if (DBufLength(&(cli_recvQ(cptr))) > feature_int(FEAT_CLIENT_FLOOD)
+	&& !IsOper(cptr))
       return exit_client(cptr, cptr, &me, "Excess Flood");
+    }
 
     while (DBufLength(&(cli_recvQ(cptr))) && !NoNewLine(cptr) && 
            (IsTrusted(cptr) || cli_since(cptr) - CurrentTime < 10))

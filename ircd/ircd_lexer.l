@@ -102,6 +102,7 @@ static struct lexer_token {
   TOKEN(USERMODE),
   TOKEN(FAST),
   TOKEN(AUTOCONNECT),
+  TOKEN(SPOOFHOST),
   TOKEN(PROGRAM),
   TOKEN(DNS),
 #undef TOKEN
@@ -151,6 +152,12 @@ static struct lexer_token {
   { "walk_lchan", TPRIV_WALK_LCHAN },
   { "wide_gline", TPRIV_WIDE_GLINE },
   { "whox", TPRIV_WHOX },
+  { "chanserv", TPRIV_CHANSERV },
+  { "xtraoper", TPRIV_XTRA_OPER },
+  { "noidle", TPRIV_NOIDLE },
+  { "freeform", TPRIV_FREEFORM },
+  { "paranoid", TPRIV_PARANOID },
+  { "check", TPRIV_CHECK },
   { NULL, 0 }
 };
 static int ntokens;
