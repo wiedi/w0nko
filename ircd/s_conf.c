@@ -53,6 +53,9 @@
 #include "s_debug.h"
 #include "s_misc.h"
 #include "send.h"
+#ifdef USE_SSL
+#include "ssl.h"
+#endif /* USE_SSL */
 #include "struct.h"
 #include "sys.h"
 
@@ -959,6 +962,10 @@ int rehash(struct Client *cptr, int sig)
     restart_resolver();
 
   log_reopen(); /* reopen log files */
+
+#ifdef USE_SSL
+  ssl_init();
+#endif /* USE_SSL */
 
   auth_close_unused();
   close_listeners();

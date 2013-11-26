@@ -360,6 +360,11 @@ int register_user(struct Client *cptr, struct Client *sptr)
 
     Count_unknownbecomesclient(sptr, UserStats);
 
+#ifdef USE_SSL
+    if (MyConnect(sptr) && cli_socket(sptr).ssl)
+      SetSSL(sptr);
+#endif /* USE_SSL */
+
     if (MyConnect(sptr) && feature_bool(FEAT_AUTOINVISIBLE))
       SetInvisible(sptr);
     
@@ -387,6 +392,11 @@ int register_user(struct Client *cptr, struct Client *sptr)
     send_reply(sptr, RPL_MYINFO, cli_name(&me), version, infousermodes,
                infochanmodes, infochanmodeswithparams);
     send_supported(sptr);
+#ifdef USE_SSL
+    if (IsSSL(sptr))
+      sendcmdto_one(&me, CMD_NOTICE, sptr, "%C :You are connected to %s with %s", sptr,
+         cli_name(&me), ssl_get_cipher(cli_socket(sptr).ssl));
+#endif
     m_lusers(sptr, sptr, 1, parv);
     update_load();
     motd_signon(sptr);

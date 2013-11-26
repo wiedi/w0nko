@@ -35,6 +35,9 @@
 #include "s_debug.h"        /* Debug */
 #include "s_user.h"         /* TARGET_DELAY */
 #include "send.h"
+#ifdef USE_SSL
+#include "ssl.h"
+#endif /* USE_SSL */
 
 /* #include <assert.h> -- Now using assert in ircd_log.h */
 #include <string.h>

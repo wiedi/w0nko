@@ -706,7 +706,7 @@ static Numeric replyTable[] = {
 /* 336 */
   { 0 },
 /* 337 */
-  { 0 },
+  { RPL_WHOISSSL, "%s :is using a secure (SSL) connection", "337" },
 /* 338 */
   { RPL_WHOISACTUALLY, "%s %s@%s %s :Actual user@host, Actual IP", "338" },
 /* 339 */
@@ -970,7 +970,7 @@ static Numeric replyTable[] = {
 /* 468 */
   { ERR_INVALIDUSERNAME, 0, "468" },
 /* 469 */
-  { 0 },
+  { ERR_SSLONLYCHAN, "%s :Cannot join channel, SSL clients only (+z)", "469" },
 /* 470 */
   { 0 },
 /* 471 */

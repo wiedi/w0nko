@@ -53,7 +53,8 @@ enum ListenerFlag {
   /** Port listens for IPv6 connections. */
   LISTEN_IPV6,
   /** Sentinel for counting listener flags. */
-  LISTEN_LAST_FLAG
+  LISTEN_LAST_FLAG,
+  LISTEN_SSL
 };
 
 DECLARE_FLAGSET(ListenerFlags, LISTEN_LAST_FLAG);
@@ -75,6 +76,7 @@ struct Listener {
 };
 
 #define listener_server(LISTENER) FlagHas(&(LISTENER)->flags, LISTEN_SERVER)
+#define listener_ssl(LISTENER) FlagHas(&(LISTENER)->flags, LISTEN_SSL)
 #define listener_active(LISTENER) FlagHas(&(LISTENER)->flags, LISTEN_ACTIVE)
 
 extern void        add_listener(int port, const char* vaddr_ip, 

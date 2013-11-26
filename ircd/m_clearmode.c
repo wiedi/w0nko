@@ -130,6 +130,7 @@ do_clearmode(struct Client *cptr, struct Client *sptr, struct Channel *chptr,
     MODE_NONOTICE,      'N',
     MODE_NOMULTITARGET, 'T',
     MODE_MODERATENOREG, 'M',
+    MODE_SSLONLY,       'z',
     0x0, 0x0
   };
   int *flag_p;
@@ -281,7 +282,7 @@ int
 mo_clearmode(struct Client* cptr, struct Client* sptr, int parc, char* parv[])
 {
   struct Channel *chptr;
-  char *control = "ovpsmikbl"; /* default control string */
+  char *control = "ovpsmikblz"; /* default control string */
   const char *chname, *qreason;
   int force = 0;
 

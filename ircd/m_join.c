@@ -202,6 +202,8 @@ int m_join(struct Client *cptr, struct Client *sptr, int parc, char *parv[])
         err = ERR_CHANNELISFULL;
       else if ((chptr->mode.mode & MODE_REGONLY) && !IsAccount(sptr))
         err = ERR_NEEDREGGEDNICK;
+      else if ((chptr->mode.mode & MODE_SSLONLY) && !IsSSL(sptr))
+        err = ERR_SSLONLYCHAN;
       else if (find_ban(sptr, chptr->banlist))
         err = ERR_BANNEDFROMCHAN;
       else if (*chptr->mode.key && (!key || strcmp(key, chptr->mode.key)))

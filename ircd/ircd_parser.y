@@ -178,6 +178,7 @@ static void free_slist(struct SLink **link) {
 %token SPOOFHOST
 %token TOK_IPV4 TOK_IPV6
 %token DNS
+%token SSLONLY
 /* and now a lot of privileges... */
 %token TPRIV_CHAN_LIMIT TPRIV_MODE_LCHAN TPRIV_DEOP_LCHAN TPRIV_WALK_LCHAN
 %token TPRIV_LOCAL_KILL TPRIV_REHASH TPRIV_RESTART TPRIV_DIE
@@ -745,7 +746,7 @@ portblock: PORT '{' portitems '}' ';' {
   port = 0;
 };
 portitems: portitem portitems | portitem;
-portitem: portnumber | portvhost | portvhostnumber | portmask | portserver | porthidden;
+portitem: portnumber | portvhost | portvhostnumber | portmask | portserver | portssl | porthidden;
 portnumber: PORT '=' address_family NUMBER ';'
 {
   if ($4 < 1 || $4 > 65535) {
@@ -793,6 +794,11 @@ portserver: SERVER '=' YES ';'
 } | SERVER '=' NO ';'
 {
   FlagClr(&listen_flags, LISTEN_SERVER);
+};
+
+portssl: SSLONLY ';'
+{
+      FlagSet(&listen_flags, LISTEN_SSL);
 };
 
 porthidden: HIDDEN '=' YES ';'

@@ -855,7 +855,8 @@ Optional Features:
   --disable-inlines       Disable inlining for a few critical functions
   --disable-devpoll       Disable the /dev/poll-based engine
   --disable-kqueue        Disable the kqueue-based engine
-  --disable-epoll         Disable the epoll-based engine
+  --enable-epoll         Enable the epoll-based engine
+  --disable-ssl           Disable SSL
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -10159,7 +10160,7 @@ else
   if test "${unet_cv_enable_epoll+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
-  unet_cv_enable_epoll=yes
+  unet_cv_enable_epoll=no
 fi
 
 fi;
@@ -10170,6 +10171,34 @@ fi
 
 echo "$as_me:$LINENO: result: $unet_cv_enable_epoll" >&5
 echo "${ECHO_T}$unet_cv_enable_epoll" >&6
+
+
+{ echo "$as_me:$LINENO: checking whether to enable ssl" >&5
+echo $ECHO_N "checking whether to enable ssl... $ECHO_C" >&6; }
+# Check whether --enable-ssl was given.
+if test "${enable_ssl+set}" = set; then
+  enableval=$enable_ssl; unet_cv_enable_ssl=$enable_ssl
+else
+  if test "${unet_cv_enable_ssl+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  unet_cv_enable_ssl=yes
+fi
+
+fi
+
+
+{ echo "$as_me:$LINENO: result: $unet_cv_enable_ssl" >&5
+echo "${ECHO_T}$unet_cv_enable_ssl" >&6; }
+
+if test x"$unet_cv_enable_ssl" != xno; then
+
+cat >>confdefs.h <<\_ACEOF
+#define USE_SSL
+_ACEOF
+
+fi
+
 
 if test x"$unet_cv_enable_epoll" != xno; then
     echo "$as_me:$LINENO: checking whether epoll functions are properly defined" >&5

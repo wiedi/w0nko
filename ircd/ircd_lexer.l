@@ -70,6 +70,7 @@ static struct lexer_token {
   TOKEN(TBYTES),
   TOKEN(PORT),
   TOKEN(SERVER),
+  TOKEN(SSLONLY),
   TOKEN(YES),
   TOKEN(NO),
   TOKEN(HUB),
@@ -158,6 +159,7 @@ static struct lexer_token {
   { "freeform", TPRIV_FREEFORM },
   { "paranoid", TPRIV_PARANOID },
   { "check", TPRIV_CHECK },
+  { "ssl", SSLONLY },
   { NULL, 0 }
 };
 static int ntokens;

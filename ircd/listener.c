@@ -146,7 +146,11 @@ void show_ports(struct Client* sptr, const struct StatDesc* sd,
     if (port && port != listener->addr.port)
       continue;
     len = 0;
+#ifdef USE_SSL
+    flags[len++] = listener_server(listener) ? 'S' : listener_ssl(listener) ? 'E' : 'C';
+#else
     flags[len++] = listener_server(listener) ? 'S' : 'C';
+#endif /* USE_SSL */
     if (FlagHas(&listener->flags, LISTEN_HIDDEN))
     {
       if (!show_hidden)
@@ -520,7 +524,15 @@ static void accept_connection(struct Event* ev)
       }
       ++ServerStats->is_ac;
       /* nextping = CurrentTime; */
+#ifdef USE_SSL
+      if (listener_ssl(listener))
+        ssl_add_connection(listener, fd);
+      else
+        add_connection(listener, fd, NULL);
+#else
       add_connection(listener, fd);
+#endif /* USE_SSL */
+
     }
   }
 }

@@ -104,6 +104,25 @@ const char* const TOS_ERROR_MSG	      = "error setting TOS for %s: %s";
 static void client_sock_callback(struct Event* ev);
 static void client_timer_callback(struct Event* ev);
 
+#ifdef USE_SSL
+/* Helper routines */
+static IOResult client_recv(struct Client *cptr, char *buf, unsigned int length, unsigned int* count_out)
+{
+  if (cli_socket(cptr).ssl)
+    return ssl_recv(&cli_socket(cptr), buf, length, count_out);
+  else
+    return os_recv_nonb(cli_fd(cptr), buf, length, count_out);
+}
+
+static IOResult client_sendv(struct Client *cptr, struct MsgQ *buf, unsigned int *count_in, unsigned int *count_out)
+{
+  if (cli_socket(cptr).ssl)
+    return ssl_sendv(&cli_socket(cptr), buf, count_in, count_out);
+  else
+    return os_sendv_nonb(cli_fd(cptr), buf, count_in, count_out);
+}
+#endif /* USE_SSL */
+
 
 /*
  * Cannot use perror() within daemon. stderr is closed in
@@ -275,8 +294,11 @@ unsigned int deliver_it(struct Client *cptr, struct MsgQ *buf)
   unsigned int bytes_written = 0;
   unsigned int bytes_count = 0;
   assert(0 != cptr);
-
+#ifdef USE_SSL
+  switch (client_sendv(cptr, buf, &bytes_count, &bytes_written)) {
+#else
   switch (os_sendv_nonb(cli_fd(cptr), buf, &bytes_count, &bytes_written)) {
+#endif /* USE_SSL */
   case IO_SUCCESS:
     ClrFlag(cptr, FLAG_BLOCKED);
 
@@ -459,7 +481,11 @@ int net_close_unregistered_connections(struct Client* source)
  * @param listener Listening socket that received the connection.
  * @param fd File descriptor of new connection.
  */
+#ifdef USE_SSL
+void add_connection(struct Listener* listener, int fd, void *ssl) {
+#else
 void add_connection(struct Listener* listener, int fd) {
+#endif /* USE_SSL */
   struct irc_sockaddr addr;
   struct Client      *new_client;
   time_t             next_target = 0;
@@ -479,7 +505,11 @@ void add_connection(struct Listener* listener, int fd) {
    */
   if (!os_get_peername(fd, &addr) || !os_set_nonblocking(fd)) {
     ++ServerStats->is_ref;
+#ifdef USE_SSL
+    ssl_murder(ssl, fd, "");
+#else
     close(fd);
+#endif /* USE_SSL */
     return;
   }
   /*
@@ -507,8 +537,12 @@ void add_connection(struct Listener* listener, int fd) {
     if (!IPcheck_local_connect(&addr.addr, &next_target))
     {
       ++ServerStats->is_ref;
-      write(fd, throttle_message, strlen(throttle_message));
-      close(fd);
+#ifdef USE_SSL
+     ssl_murder(ssl, fd, throttle_message);
+#else
+     write(fd, throttle_message, strlen(throttle_message));
+     close(fd);
+#endif /* USE_SSL */
       return;
     }
     new_client = make_client(0, STAT_UNKNOWN_USER);
@@ -530,11 +564,19 @@ void add_connection(struct Listener* listener, int fd) {
   if (!socket_add(&(cli_socket(new_client)), client_sock_callback,
 		  (void*) cli_connect(new_client), SS_CONNECTED, 0, fd)) {
     ++ServerStats->is_ref;
+#ifdef USE_SSL
+    ssl_murder(ssl, fd, register_message);
+#else
     write(fd, register_message, strlen(register_message));
     close(fd);
+#endif /* USE_SSL */
     cli_fd(new_client) = -1;
     return;
   }
+#ifdef USE_SSL
+  if (ssl)
+    cli_socket(new_client).ssl = ssl;
+#endif /* USE_SSL */
   cli_freeflag(new_client) |= FREEFLAG_SOCKET;
   cli_listener(new_client) = listener;
   ++listener->ref_count;
@@ -577,7 +619,11 @@ static int read_packet(struct Client *cptr, int socket_ready)
   if (socket_ready &&
       !(IsUser(cptr) && !IsOper(cptr) &&
 	DBufLength(&(cli_recvQ(cptr))) > feature_int(FEAT_CLIENT_FLOOD))) {
+#ifdef USE_SSL
+    switch (client_recv(cptr, readbuf, sizeof(readbuf), &length)) {
+#else
     switch (os_recv_nonb(cli_fd(cptr), readbuf, sizeof(readbuf), &length)) {
+#endif /* USE_SSL */
     case IO_SUCCESS:
       if (length)
       {
@@ -855,6 +901,9 @@ static void client_sock_callback(struct Event* ev)
 
     if (!con_freeflag(con) && !cptr)
       free_connection(con);
+#ifdef USE_SSL
+    ssl_free(ev_socket(ev));
+#endif /* USE_SSL */
     break;
 
   case ET_CONNECT: /* socket connection completed */

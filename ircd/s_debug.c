@@ -48,6 +48,9 @@
 #include "s_user.h"
 #include "s_stats.h"
 #include "send.h"
+#ifdef USE_SSL
+#include "ssl.h"
+#endif /* USE_SSL */
 #include "struct.h"
 #include "sys.h"
 #include "whowas.h"
@@ -114,6 +117,10 @@ const char* debug_serveropts(void)
 #ifdef  IPV6
   AddC('6');
 #endif
+
+#ifdef USE_SSL
+  AddC('Z');
+#endif /* USE_SSL */
 
   serveropts[i] = '\0';
 
@@ -311,8 +318,13 @@ void count_memory(struct Client *cptr, const struct StatDesc *sd,
   for (cltmp = get_class_list(); cltmp; cltmp = cltmp->next)
     cl++;
 
+#ifdef USE_SSL
   send_reply(cptr, SND_EXPLICIT | RPL_STATSDEBUG,
-	     ":Clients %d(%zu) Connections %d(%zu)", c, cm, cn, cnm);
+       ":Clients %d(%zu) Connections %d(%zu) SSL %d", c, cm, cn, cnm, ssl_count());
+#else
+  send_reply(cptr, SND_EXPLICIT | RPL_STATSDEBUG,
+        ":Clients %d(%zu) Connections %d(%zu)", c, cm, cn, cnm);
+#endif /* USE_SSL */
   send_reply(cptr, SND_EXPLICIT | RPL_STATSDEBUG,
 	     ":Users %zu(%zu) Accounts %d(%zu) Invites %d(%zu)",
              us, usm, acc, acc * (ACCOUNTLEN + 1),

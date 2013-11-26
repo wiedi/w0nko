@@ -58,8 +58,7 @@ CC = @CC@
 CFLAGS = @CFLAGS@
 CPPFLAGS = -I. -I.. -I${top_srcdir}/include @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
-LIBS = @LIBS@
-
+LIBS = @LIBS@ -lssl -lcrypto -lfl
 #### End of system configuration section. ####
 PURIFY =
 RINGLOG_O =
@@ -210,6 +209,7 @@ IRCD_SRC = \
 	s_stats.c \
 	s_user.c \
 	send.c \
+    ssl.c \
 	uping.c \
 	userload.c \
 	whocmds.c \

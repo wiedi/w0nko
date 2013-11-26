@@ -117,13 +117,14 @@ struct Client;
 
 #define MODE_NOMULTITARGET 0x1000000    /**< +T No multiple targets */
 #define MODE_MODERATENOREG 0x2000000    /**< +M Moderate unauthed users */
+#define MODE_SSLONLY       0x4000000    /**< +z SSL Clients Only */
 
 /** mode flags which take another parameter (With PARAmeterS)
  */
 #define MODE_WPARAS     (MODE_CHANOP|MODE_VOICE|MODE_BAN|MODE_KEY|MODE_LIMIT|MODE_APASS|MODE_UPASS)
 
 /** Available Channel modes */
-#define infochanmodes feature_bool(FEAT_OPLEVELS) ? "AbiklmnopstUvrDcCNuMT" : "biklmnopstvrDcCNuMT"
+#define infochanmodes feature_bool(FEAT_OPLEVELS) ? "AbiklmnopstUvrDcCNuMTz" : "biklmnopstvrDcCNuMTz"
 /** Available Channel modes that take parameters */
 #define infochanmodeswithparams feature_bool(FEAT_OPLEVELS) ? "AbkloUv" : "bklov"
 

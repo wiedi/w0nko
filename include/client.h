@@ -176,6 +176,7 @@ enum Flag
     FLAG_ACCOUNT,                   /**< account name has been set */
     FLAG_ACCOUNTONLY,               /**< ASUKA_R: hide privmsgs/notices if
 				      user is not authed or opered */
+    FLAG_SSL,                       /**< SSL user */
     FLAG_PARANOID,                  /**< ASUKA_P: sends notices on whois */
     FLAG_HIDDENHOST,                /**< user's host is hidden */
     FLAG_SETHOST,                   /**< ASUKA_h: oper's host is changed */
@@ -608,6 +609,8 @@ struct Client {
 /** Return non-zero if the client should not receive privmsgs/notices
  * from unauthed users */
 #define IsAccountOnly(x)        HasFlag(x, FLAG_ACCOUNTONLY)
+/** Return non-zero if the client is connected over SSL */
+#define IsSSL(x)                HasFlag(x, FLAG_SSL)
 /** Return non-zero if the client should receive notices when someone
  * does a whois on it. */
 #define IsParanoid(x)           HasFlag(x, FLAG_PARANOID)
@@ -674,6 +677,8 @@ struct Client {
 #define SetPingSent(x)          SetFlag(x, FLAG_PINGSENT)
 /** Mark a client as having mode +R (account only). */
 #define SetAccountOnly(x)       SetFlag(x, FLAG_ACCOUNTONLY)
+/** Mark a client as connected over SSL */
+#define SetSSL(x)      SetFlag(x, FLAG_SSL)
 /** Mark a client as having mode +P (paranoid). */
 #define SetParanoid(x)          SetFlag(x, FLAG_PARANOID)
 
@@ -719,6 +724,8 @@ struct Client {
 #define ClearPingSent(x)        ClrFlag(x, FLAG_PINGSENT)
 /** Remove mode +R (account only) from a client */
 #define ClearAccountOnly(x)     ClrFlag(x, FLAG_ACCOUNTONLY)
+/** Clear the client's SSL flag */
+#define ClearSSL(x)    ClrFlag(x, FLAG_SSL)
 /** Remove mode +P (paranoid) from a client */
 #define ClearParanoid(x)        ClrFlag(x, FLAG_PARANOID)
 

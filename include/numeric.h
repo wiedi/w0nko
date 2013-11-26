@@ -253,6 +253,7 @@ extern const struct Numeric* get_error_numeric(int err);
 #define RPL_LISTUSAGE        334        /* Undernet extension */
 /*	RPL_COMMANDSYNTAX    334	   Dalnet */
 /*	RPL_LISTSYNTAX	     334	   unreal */
+#define RPL_WHOISSSL         337        /* SSL extension */
 /*      RPL_CHANPASSOK       338           IRCnet extension (?)*/
 #define	RPL_WHOISACTUALLY    338	/* Undernet extension, dalnet */
 /*	RPL_BADCHANPASS	     339           IRCnet extension (?) */
@@ -389,6 +390,7 @@ extern const struct Numeric* get_error_numeric(int err);
 #define ERR_KEYSET           467        /* Undernet extension */
 #define ERR_INVALIDUSERNAME  468        /* Undernet extension */
 /* 	ERR_ONLYSERVERSCANCHANGE 468	   Dalnet,unreal */
+#define ERR_SSLONLYCHAN      469        /* SSL extension */
 /*	ERR_LINKSET	     469	unreal */
 /*	ERR_LINKCHANNEL	     470	unreal */
 /*      ERR_KICKEDFROMCHAN   470         aircd */

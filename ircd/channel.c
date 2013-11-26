@@ -836,6 +836,8 @@ void channel_modes(struct Client *cptr, char *mbuf, char *pbuf, int buflen,
     *mbuf++ = 'N';
   if (chptr->mode.mode & MODE_NOQUITPARTS)
     *mbuf++ = 'u';
+  if (chptr->mode.mode & MODE_SSLONLY)
+    *mbuf++ = 'z';
   if (chptr->mode.mode & MODE_DELJOINS)
     *mbuf++ = 'D';
   if (chptr->mode.mode & MODE_NOMULTITARGET)
@@ -1612,6 +1614,7 @@ modebuf_flush_int(struct ModeBuf *mbuf, int all)
     MODE_NONOTICE,	'N',
     MODE_NOMULTITARGET, 'T',
     MODE_MODERATENOREG, 'M',
+    MODE_SSLONLY,  'z',
     0x0, 0x0
   };
   static int local_flags[] = {
@@ -2021,7 +2024,8 @@ modebuf_mode(struct ModeBuf *mbuf, unsigned int mode)
   mode &= (MODE_ADD | MODE_DEL | MODE_PRIVATE | MODE_SECRET | MODE_MODERATED |
            MODE_TOPICLIMIT | MODE_INVITEONLY | MODE_NOPRIVMSGS | MODE_REGONLY |
            MODE_DELJOINS | MODE_WASDELJOINS | MODE_NOQUITPARTS  | MODE_NOCOLOUR |
-           MODE_NOCTCP | MODE_NONOTICE | MODE_NOMULTITARGET | MODE_MODERATENOREG);
+           MODE_NOCTCP | MODE_NONOTICE | MODE_NOMULTITARGET |
+           MODE_MODERATENOREG | MODE_SSLONLY);
 
   if (!(mode & ~(MODE_ADD | MODE_DEL))) /* don't add empty modes... */
     return;
@@ -2191,6 +2195,7 @@ modebuf_extract(struct ModeBuf *mbuf, char *buf)
     MODE_NONOTICE,      'N',
     MODE_NOMULTITARGET, 'T',
     MODE_MODERATENOREG, 'M',
+    MODE_SSLONLY,  'z',
     0x0, 0x0
   };
   unsigned int add;
@@ -3322,6 +3327,7 @@ mode_parse(struct ModeBuf *mbuf, struct Client *cptr, struct Client *sptr,
     MODE_NONOTICE,      'N',
     MODE_NOMULTITARGET, 'T',
     MODE_MODERATENOREG, 'M',
+    MODE_SSLONLY,       'z',
     MODE_ADD,		'+',
     MODE_DEL,		'-',
     0x0, 0x0
@@ -3410,6 +3416,16 @@ mode_parse(struct ModeBuf *mbuf, struct Client *cptr, struct Client *sptr,
       case 'v':
 	mode_parse_client(&state, flag_p);
 	break;
+
+      case 'z': /* deal with SSL only */
+        /* If they're not a SSL user, they can't +/- MODE_SSLONLY. */
+        if (((MyConnect(sptr) && IsSSL(sptr)) || !MyConnect(sptr))
+           || IsServer(sptr) || IsChannelService(sptr)) {
+          mode_parse_mode(&state, flag_p);
+        } else {
+          send_reply(sptr, ERR_NOPRIVILEGES); /* XXX NNN fix me */
+        }
+        break;
 
       default: /* deal with other modes */
 	mode_parse_mode(&state, flag_p);
