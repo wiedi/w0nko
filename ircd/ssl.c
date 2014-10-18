@@ -1,6 +1,7 @@
 /*
  * IRC - Internet Relay Chat (SSL), ircd/ssl.c
  * Copyright (C) 2002 Alex Badea <vampire@go.ro>
+ * Copyright (C) 2014 Thomas Merkel <tm@core.io>
  *
  * See file AUTHORS in IRC package for additional names of
  * the programmers.
@@ -377,6 +378,8 @@ void ssl_init(void)
     sslfail("SSL_CTX_use_certificate_file");
   if (!SSL_CTX_use_RSAPrivateKey_file(ctx, pemfile, SSL_FILETYPE_PEM))
     sslfail("SSL_CTX_use_RSAPrivateKey_file");
+  if (!SSL_CTX_use_certificate_chain_file(ctx, pemfile))
+    sslfail("SSL_CTX_use_certificate_chain_file");
 
   Debug((DEBUG_DEBUG, "SSL: init ok"));
 }
