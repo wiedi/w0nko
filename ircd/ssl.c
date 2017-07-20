@@ -365,12 +365,35 @@ void ssl_init(void)
   Debug((DEBUG_NOTICE, "SSL: read %d bytes of randomness", RAND_load_file("/dev/urandom", 4096)));
 
   ctx = SSL_CTX_new(SSLv23_server_method());
+  SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);   /* always disable SSLv2 and SSLv3 */
+  SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1); /* always disable TLS1 and TLS1.1 */
+
+  /* The server should provide the preferred HIGH ciphers */
+  SSL_CTX_set_options(ctx, SSL_OP_CIPHER_SERVER_PREFERENCE);
+  SSL_CTX_set_cipher_list(ctx, "HIGH !aNULL");
+
   SSL_CTX_set_tmp_rsa_callback(ctx, tmp_rsa_cb);
   SSL_CTX_need_tmp_RSA(ctx);
   SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
   SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_BOTH);
   SSL_CTX_set_timeout(ctx, 300); /* XXX */
   SSL_CTX_set_info_callback(ctx, info_callback);
+
+  /* If possible use ECDH auto from OpenSSL */
+#if defined(SSL_CTX_set_ecdh_auto)
+  SSL_CTX_set_ecdh_auto(ctx, 1);
+#else
+  EC_KEY *key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  if(key == NULL) {
+    sslfail("EC_KEY_new_by_curve_name");
+    exit(2);
+  }
+  if(!SSL_CTX_set_tmp_ecdh(ctx, key)) {
+    sslfail("SSL_CTX_set_tmp_ecdh");
+    exit(2);
+  }
+  EC_KEY_free(key);
+#endif
 
   ircd_snprintf(0, pemfile, sizeof(pemfile), "%s/ircd.pem", DPATH);
   Debug((DEBUG_DEBUG, "SSL: using pem file: %s", pemfile));
