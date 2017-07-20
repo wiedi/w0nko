@@ -384,10 +384,14 @@ void ssl_init(void)
   SSL_CTX_set_ecdh_auto(ctx, 1);
 #else
   EC_KEY *key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-  if(key == NULL)
+  if(key == NULL) {
     sslfail("EC_KEY_new_by_curve_name");
-  if(!SSL_CTX_set_tmp_ecdh(ctx, key))
+    exit(2);
+  }
+  if(!SSL_CTX_set_tmp_ecdh(ctx, key)) {
     sslfail("SSL_CTX_set_tmp_ecdh");
+    exit(2);
+  }
   EC_KEY_free(key);
 #endif
 
