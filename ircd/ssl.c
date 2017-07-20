@@ -383,7 +383,10 @@ void ssl_init(void)
 #if defined(SSL_CTX_set_ecdh_auto)
   SSL_CTX_set_ecdh_auto(ctx, 1);
 #else
-  SSL_CTX_set_tmp_ecdh(ctx, EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+  EC_KEY *key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  if(key == NULL)
+    sslfail("EC_KEY_new_by_curve_name");
+  SSL_CTX_set_tmp_ecdh(ctx, key);
 #endif
 
   ircd_snprintf(0, pemfile, sizeof(pemfile), "%s/ircd.pem", DPATH);
