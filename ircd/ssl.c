@@ -386,7 +386,9 @@ void ssl_init(void)
   EC_KEY *key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
   if(key == NULL)
     sslfail("EC_KEY_new_by_curve_name");
-  SSL_CTX_set_tmp_ecdh(ctx, key);
+  if(!SSL_CTX_set_tmp_ecdh(ctx, key))
+    sslfail("SSL_CTX_set_tmp_ecdh");
+  EC_KEY_free(key);
 #endif
 
   ircd_snprintf(0, pemfile, sizeof(pemfile), "%s/ircd.pem", DPATH);
