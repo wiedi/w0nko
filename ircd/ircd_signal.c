@@ -108,8 +108,8 @@ static void sighup_callback(struct Event* ev)
 }
 
 /** Signal callback for SIGUSR1.
- *  * @param[in] ev Signal event descriptor.
- *   */
+ * @param[in] ev Signal event descriptor.
+ */
 static void sigusr1_callback(struct Event* ev)
 {
   assert(0 != ev_signal(ev));
