@@ -358,11 +358,18 @@ static void sslfail(char *txt)
 void ssl_init(void)
 {
   char pemfile[1024];
+  static int global_init_done = 0;
 
-  SSLeay_add_ssl_algorithms();
-  SSL_load_error_strings();
+  if (!global_init_done) {
+    SSLeay_add_ssl_algorithms();
+    SSL_load_error_strings();
+    global_init_done = 1;
+  }
 
   Debug((DEBUG_NOTICE, "SSL: read %d bytes of randomness", RAND_load_file("/dev/urandom", 4096)));
+
+  if (ctx)
+    SSL_CTX_free(ctx);
 
   ctx = SSL_CTX_new(SSLv23_server_method());
   SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);   /* always disable SSLv2 and SSLv3 */
